@@ -1,0 +1,65 @@
+---
+# installing zabbix agent2
+- hosts: all
+  become: true  
+  vars: 
+    server_ip: 192.168.228.9
+  tasks:
+  - name: check if agent is installed ?
+    stat:
+        path: /usr/sbin/zabbix_agentd
+    register: zabbix
+
+  - name: remove zabbix-agent package
+    apt:
+        pkg: zabbix-agent
+        state: absent
+        purge: yes
+    when:
+        - zabbix.stat.exists
+
+  - name: remove zabbix-release package
+    apt:
+        pkg: zabbix-release
+        state: absent
+        purge: yes
+  - name: get zabbix repo
+    get_url:
+      url: https://repo.zabbix.com/zabbix/6.0/ubuntu/pool/main/z/zabbix-release/zabbix-release_6.0-1+ubuntu20.04_all.deb
+      dest: /tmp/
+      timeout: 20 
+  - name: install zabbix repo
+    become: true
+    apt:
+      deb: /tmp/zabbix-release_6.0-1+ubuntu20.04_all.deb
+
+  - name: update apt repos
+    apt:
+      update_cache: yes
+
+  - name: install | zabbix-agent2
+    apt:
+      name: zabbix-agent2
+# replace to actual zabbix server you desired 
+  - name: Update server IP
+    replace:
+      path: /etc/zabbix/zabbix_agent2.conf
+      regexp: '^Server=(.*)'
+      replace: "Server={{server_ip}}"
+
+  - name: Update server IP
+    replace:
+      path: /etc/zabbix/zabbix_agent2.conf
+      regexp: '^ServerActive=(.*)'
+      replace: "ServerActive={{server_ip}}"
+
+  - name: Update Hostname
+    replace:
+      path: /etc/zabbix/zabbix_agent2.conf
+      regexp: '^Hostname=(.*)'
+      replace: "Hostname={{ansible_hostname}}"
+      
+  - name: Restart zabbix agent
+    service:
+      name: zabbix-agent2
+      state: restarted
